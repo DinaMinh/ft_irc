@@ -6,7 +6,7 @@
 /*   By: dminh <dminh@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/08/21 11:00:47 by dminh             #+#    #+#             */
-/*   Updated: 2026/09/13 17:20:00 by dminh            ###   ########.fr       */
+/*   Updated: 2026/09/14 13:12:02 by dminh            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -32,6 +32,7 @@ Server::Server(const std::string &port, const std::string &pw)
 	flags = flags | O_NONBLOCK;
 	if (fcntl(this->_serv_fd, F_SETFL, flags) == -1)
 		throw	std::runtime_error("error: Couldn't set the socket flags");
+	this->setCmdMap();
 }
 
 Server::Server(const Server &cpy)
@@ -42,6 +43,13 @@ Server	&Server::operator=(const Server &src)
 {
 	if (this != &src){}
 	return (*this);
+}
+
+void	Server::setCmdMap(void)
+{
+	this->_cmd.insert(std::make_pair("PASS", &Server::cmdPass));
+	this->_cmd.insert(std::make_pair("NICK", &Server::cmdNick));
+	this->_cmd.insert(std::make_pair("USER", &Server::cmdUser));
 }
 
 void	Server::establishConnection(void)
@@ -198,13 +206,9 @@ void Server::parseAndExecute(std::string message, int client_fd)
 		return;
 		
 	Client &client = it->second;
-
-	if (command == "PASS")
-		this->cmdPass(client, args);
-	else if (command == "NICK")
-		this->cmdNick(client, args);
-	else if (command == "USER")
-		this->cmdUser(client, args);
+	cmdIt cmd = this->_cmd.find(command);
+	if (cmd != this->_cmd.end())
+		(this->*(cmd->second))(client, args);
 	else
 	{
 		if (!client.isRegistered())

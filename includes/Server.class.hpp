@@ -6,7 +6,7 @@
 /*   By: dminh <dminh@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/08/21 10:58:04 by dminh             #+#    #+#             */
-/*   Updated: 2026/09/13 17:20:00 by dminh            ###   ########.fr       */
+/*   Updated: 2026/09/14 13:05:31 by dminh            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,18 +24,24 @@
 /* Forward declarations of ASocket and Client */
 class	ASocket;
 class	Client;
+class	Server;
 
 typedef std::map<int, Client>::iterator	mapIt;
 
+typedef std::map<std::string,
+		void (Server::*)(Client &, std::vector<std::string>)>::iterator	cmdIt;
 class	Server : public ASocket
 {
 	private:
-		std::map<int, Client>		_clients;
-		std::vector<struct pollfd>	_fds;
-		char						_buf[DATA_SIZE];
-		int							_serv_fd;
-		int							_accept_sock;
-		int							_bytes;
+		std::map<std::string,
+			void (Server::*)(Client &,
+					std::vector<std::string>)>	_cmd;
+		std::map<int, Client>					_clients;
+		std::vector<struct pollfd>				_fds;
+		char									_buf[DATA_SIZE];
+		int										_serv_fd;
+		int										_accept_sock;
+		int										_bytes;
 	public:
 		Server(const std::string &port, const std::string &pass);
 		Server(const Server &cpy);
@@ -52,6 +58,7 @@ class	Server : public ASocket
 		void	cmdPass(Client &client, std::vector<std::string> args);
 		void	cmdNick(Client &client, std::vector<std::string> args);
 		void	cmdUser(Client &client, std::vector<std::string> args);
+		void	setCmdMap(void);
 };
 
 #endif
