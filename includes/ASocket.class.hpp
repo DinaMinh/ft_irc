@@ -26,7 +26,7 @@
  *	PROTOCOL is 0 because usually, only one protocol exists 
  *	LOC_HOST is the default local host ip */
 
-# define DOMAIN AF_INET
+# define SOCKET_DOMAIN AF_INET
 # define TYPE SOCK_STREAM
 # define PROTOCOL 0
 # define LOC_HOST "127.0.0.1"

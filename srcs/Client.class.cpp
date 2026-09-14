@@ -13,7 +13,7 @@
 #include "Client.class.hpp"
 
 Client::Client(int socket)
-:	_fd(socket)
+:	_fd(socket), _isPassOk(false), _isRegistered(false)
 {
 }
 
@@ -39,4 +39,51 @@ Client	&Client::operator=(const Client &src)
 Client::~Client(void)
 {
 }
+
+void Client::appendData(std::string data)
+{
+	this->_buf += data;
+}
+
+bool Client::isMessageComplete(void) const
+{
+	if (this->_buf.find("\r\n") != std::string::npos || this->_buf.find("\n") != std::string::npos)
+		return (true);
+	return (false);
+}
+
+std::string Client::extractMessage(void)
+{
+	std::string message;
+	size_t pos;
+
+	pos = this->_buf.find("\r\n");
+	if (pos != std::string::npos)
+	{
+		message = this->_buf.substr(0, pos);
+		this->_buf.erase(0, pos + 2);
+		return (message);
+	}
+	pos = this->_buf.find("\n");
+	if (pos != std::string::npos)
+	{
+		message = this->_buf.substr(0, pos);
+		this->_buf.erase(0, pos + 1);
+	}
+	return (message);
+}
+
+int Client::getFd(void) const { return this->_fd; }
+
+bool Client::isPassOk(void) const { return this->_isPassOk; }
+void Client::setPassOk(bool val) { this->_isPassOk = val; }
+
+bool Client::isRegistered(void) const { return this->_isRegistered; }
+void Client::setRegistered(bool val) { this->_isRegistered = val; }
+
+void Client::setNickname(std::string nick) { this->_nickname = nick; }
+std::string Client::getNickname(void) const { return this->_nickname; }
+
+void Client::setUsername(std::string user) { this->_username = user; }
+std::string Client::getUsername(void) const { return this->_username; }
 

@@ -16,7 +16,7 @@
 # include <iostream>
 
 # include <sys/socket.h>
-# include <sys/epoll.h>
+# include <poll.h>
 # include <fcntl.h>
 
 # include "ParametersException.class.hpp"
