@@ -6,7 +6,7 @@
 /*   By: dminh <dminh@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/08/21 10:58:04 by dminh             #+#    #+#             */
-/*   Updated: 2026/09/14 13:05:31 by dminh            ###   ########.fr       */
+/*   Updated: 2026/09/14 13:34:05 by dminh            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,12 +19,14 @@
 # include <fcntl.h>
 # include <poll.h>
 # include <string>
+
 # define DATA_SIZE 512
 
-/* Forward declarations of ASocket and Client */
+/* Forward declarations of ASocket and Client, Server and Channel */
 class	ASocket;
 class	Client;
 class	Server;
+class	Channel;
 
 typedef std::map<int, Client>::iterator	mapIt;
 
@@ -36,6 +38,7 @@ class	Server : public ASocket
 		std::map<std::string,
 			void (Server::*)(Client &,
 					std::vector<std::string>)>	_cmd;
+		std::vector<Channel>					_channels;
 		std::map<int, Client>					_clients;
 		std::vector<struct pollfd>				_fds;
 		char									_buf[DATA_SIZE];

@@ -7,7 +7,7 @@ INCLUDES := ./includes/
 CXXFLAGS := -Wall -Wextra -Werror -I$(INCLUDES) -MMD -std=c++98
 
 SRCS := main.cpp ParametersException.class.cpp ASocket.class.cpp Server.class.cpp \
-		Client.class.cpp
+		Client.class.cpp Channel.class.cpp
 
 SRC_DIR := ./srcs/
 

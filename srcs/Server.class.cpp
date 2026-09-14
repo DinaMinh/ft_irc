@@ -13,6 +13,7 @@
 #include "ASocket.class.hpp"
 #include "Client.class.hpp"
 #include "Server.class.hpp"
+#include "Channel.class.hpp"
 #include <cstring>
 #include <stdexcept>
 #include <unistd.h> 
