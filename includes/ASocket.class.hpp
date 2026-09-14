@@ -45,8 +45,8 @@ class	ASocket
 		ASocket(const std::string &port, const std::string &pass);
 		~ASocket(void);
 		virtual void	establishConnection (void) = 0;
-		bool	getRun(void) const;
-		void	setRun(bool val);
+		bool			getRun(void) const;
+		void			setRun(bool val);
 		virtual void	closeFd(void) = 0;
 		
 };

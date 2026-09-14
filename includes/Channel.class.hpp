@@ -15,17 +15,22 @@
 
 # include <map>
 
+typedef std::map<int, Client>::iterator	mapIt;
+
 class	Client;
 
 class	Channel
 {
 	private:
 		std::map<int, Client>	_members;
+		std::map<int, Client>	_operators;
 	public:
 		Channel(Client	&member);
 		Channel(const Channel &cpy);
 		~Channel(void);
 		Channel	&operator=(const Channel &src);
+		void	addMember(Client &member);
+		bool	isMember(int fd) const;
 };
 
 #endif

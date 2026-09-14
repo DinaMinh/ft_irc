@@ -6,7 +6,7 @@
 /*   By: dminh <dminh@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/08/21 11:00:47 by dminh             #+#    #+#             */
-/*   Updated: 2026/09/14 13:12:02 by dminh            ###   ########.fr       */
+/*   Updated: 2026/09/14 16:56:17 by dminh            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,25 +14,20 @@
 #include "Client.class.hpp"
 #include "Server.class.hpp"
 #include "Channel.class.hpp"
-#include <cstring>
-#include <stdexcept>
-#include <unistd.h> 
-#include <sstream>
-#include <cctype>
 
 Server::Server(const std::string &port, const std::string &pw)
 :	ASocket(port, pw)
 {
 	if ((this->_serv_fd = socket(SOCKET_DOMAIN, TYPE, PROTOCOL)) == 0)
-		throw	std::runtime_error("error: Couldn't open the socket.");
+		throw	std::runtime_error("ERROR: Couldn't open the socket.");
 	std::cout << "serv fd = " << this->_serv_fd << std::endl;
 	
 	int	flags = fcntl(this->_serv_fd, F_GETFL, 0);
 	if (flags == -1)
-		throw	std::runtime_error("error: Couldn't get the socket flags.");
+		throw	std::runtime_error("ERROR: Couldn't get the socket flags.");
 	flags = flags | O_NONBLOCK;
 	if (fcntl(this->_serv_fd, F_SETFL, flags) == -1)
-		throw	std::runtime_error("error: Couldn't set the socket flags");
+		throw	std::runtime_error("ERROR: Couldn't set the socket flags");
 	this->setCmdMap();
 }
 
@@ -51,6 +46,7 @@ void	Server::setCmdMap(void)
 	this->_cmd.insert(std::make_pair("PASS", &Server::cmdPass));
 	this->_cmd.insert(std::make_pair("NICK", &Server::cmdNick));
 	this->_cmd.insert(std::make_pair("USER", &Server::cmdUser));
+	this->_cmd.insert(std::make_pair("JOIN", &Server::cmdJoin));
 }
 
 void	Server::establishConnection(void)
@@ -64,7 +60,7 @@ void	Server::establishConnection(void)
 	setsockopt(this->_serv_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
 	if (bind(this->_serv_fd, (sockaddr *)&_addr, sizeof(_addr)) < 0)
-		throw std::runtime_error("error: Couldn't bind the socket.");
+		throw std::runtime_error("ERROR: Couldn't bind the socket.");
 	if (listen(this->_serv_fd, 1) != 0)
 		std::cout << "Couldn't start listening." << std::endl;
 	else
@@ -87,7 +83,7 @@ void	Server::run(void)
 		{
 			if (errno == EINTR)
 				continue;
-			throw std::runtime_error("error: poll failed");
+			throw std::runtime_error("ERROR: poll failed");
 		}
 		
 		for (size_t i = 0; i < this->_fds.size(); i++)
@@ -107,11 +103,11 @@ void	Server::acceptClient(void)
 {
 	this->_accept_sock = accept(this->_serv_fd, NULL, NULL);
 	if (this->_accept_sock == -1)
-		throw std::runtime_error("error: Couldn't accept the connection");
+		throw std::runtime_error("ERROR: Couldn't accept the connection");
 	std::cout << "Connection accepted !" << std::endl;
 	int flags = fcntl(this->_accept_sock, F_GETFL, 0);
 	if (fcntl(this->_accept_sock, F_SETFL, flags | O_NONBLOCK) == - 1)
-		throw std::runtime_error("error: Couldn't set the socket flags");
+		throw std::runtime_error("ERROR: Couldn't set the socket flags");
 		
 	this->_clients.insert(std::make_pair(this->_accept_sock,
 				Client(this->_accept_sock)));
@@ -167,10 +163,6 @@ void	Server::closeFd(void)
 	close(this->_serv_fd);
 }
 
-Server::~Server(void)
-{
-}
-
 void Server::parseAndExecute(std::string message, int client_fd)
 {
 	if (message.empty())
@@ -208,6 +200,7 @@ void Server::parseAndExecute(std::string message, int client_fd)
 		
 	Client &client = it->second;
 	cmdIt cmd = this->_cmd.find(command);
+
 	if (cmd != this->_cmd.end())
 		(this->*(cmd->second))(client, args);
 	else
@@ -248,6 +241,22 @@ void Server::cmdPass(Client &client, std::vector<std::string> args)
 	}
 }
 
+bool	Server::checkRequirements(Client &client)
+{
+	if (!client.isPassOk())
+	{
+		this->sendMessage(client.getFd(), "ERROR :You must send PASS first");
+		return (false);
+	}
+	else if (!client.isRegistered())
+	{
+		this->sendMessage(client.getFd(),
+				"ERROR: You must set a nickname AND a usernamefirst");
+		return (false);
+	}
+	return (true);
+}
+
 void Server::cmdNick(Client &client, std::vector<std::string> args)
 {
 	if (!client.isPassOk())
@@ -261,11 +270,6 @@ void Server::cmdNick(Client &client, std::vector<std::string> args)
 		return;
 	}
 	client.setNickname(args[0]);
-	if (!client.getUsername().empty() && !client.isRegistered())
-	{
-		client.setRegistered(true);
-		this->sendMessage(client.getFd(), "001 " + client.getNickname() + " :Welcome to the IRC ");
-	}
 }
 
 void Server::cmdUser(Client &client, std::vector<std::string> args)
@@ -284,6 +288,61 @@ void Server::cmdUser(Client &client, std::vector<std::string> args)
 	if (!client.getNickname().empty() && !client.isRegistered())
 	{
 		client.setRegistered(true);
-		this->sendMessage(client.getFd(), "001 " + client.getNickname() + " :Welcome to the IRC ");
+		this->sendMessage(client.getFd(),
+				numToStr(this->_clients.size())
+				+ client.getNickname() + " :Welcome to the IRC ");
 	}
+}
+
+void	Server::cmdJoin(Client &client, std::vector<std::string> args)
+{
+	if (args.size() != 1)
+		this->sendMessage(client.getFd(), "ERROR: Join only takes one channel");
+	else if (!this->checkRequirements(client))
+		return ;
+	else
+	{
+		if (!this->_channels.empty())
+		{
+			chanIt	it = this->_channels.find(args.front());
+
+			if (it == this->_channels.end())
+				this->createChannel(client, args);
+			else
+				this->joinChannel(client, it, args);
+		}
+		else
+			this->createChannel(client, args);
+	}
+}
+
+void	Server::joinChannel(Client &client, chanIt &it,
+		std::vector<std::string> args)
+{
+	if (!it->second.isMember(client.getFd()))
+	{
+		it->second.addMember(client);
+		this->sendMessage(client.getFd(), "You joined the " + args.front() + " channel !");
+	}
+	else
+		this->sendMessage(client.getFd(), "You're already in this channel !");
+
+}
+
+void	Server::createChannel(Client &client, std::vector<std::string> args)
+{
+	Channel	chan(client);
+	this->_channels.insert(std::make_pair(args.front(), chan));
+
+	std::string	announce = "Channel " + args.front() + " was created !";
+	for (mapIt	it = this->_clients.begin();
+			it != this->_clients.end();
+			++it)
+	{
+		this->sendMessage(it->second.getFd(), announce);
+	}
+}
+
+Server::~Server(void)
+{
 }
