@@ -15,8 +15,9 @@
 
 # include <map>
 
-typedef std::map<int, Client>::iterator	mapIt;
+typedef std::map<int, Client>::const_iterator	memIt;
 
+class	Server;
 class	Client;
 
 class	Channel
@@ -31,6 +32,8 @@ class	Channel
 		Channel	&operator=(const Channel &src);
 		void	addMember(Client &member);
 		bool	isMember(int fd) const;
+		bool	isOp(int fd) const;
+		void	kick(Server &serv, int kicker, int kicked);
 };
 
 #endif

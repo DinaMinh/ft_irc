@@ -6,7 +6,7 @@
 /*   By: dminh <dminh@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/08/21 11:00:47 by dminh             #+#    #+#             */
-/*   Updated: 2026/09/14 16:56:17 by dminh            ###   ########.fr       */
+/*   Updated: 2026/09/15 15:39:36 by dminh            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -47,6 +47,7 @@ void	Server::setCmdMap(void)
 	this->_cmd.insert(std::make_pair("NICK", &Server::cmdNick));
 	this->_cmd.insert(std::make_pair("USER", &Server::cmdUser));
 	this->_cmd.insert(std::make_pair("JOIN", &Server::cmdJoin));
+	this->_cmd.insert(std::make_pair("KICK", &Server::cmdKick));
 }
 
 void	Server::establishConnection(void)
@@ -251,7 +252,7 @@ bool	Server::checkRequirements(Client &client)
 	else if (!client.isRegistered())
 	{
 		this->sendMessage(client.getFd(),
-				"ERROR: You must set a nickname AND a usernamefirst");
+				"ERROR: You must set a nickname AND a username first");
 		return (false);
 	}
 	return (true);
@@ -300,6 +301,8 @@ void	Server::cmdJoin(Client &client, std::vector<std::string> args)
 		this->sendMessage(client.getFd(), "ERROR: Join only takes one channel");
 	else if (!this->checkRequirements(client))
 		return ;
+	else if (!this->isChannel(args))
+		this->sendMessage(client.getFd(), "ERROR: Invalid channel syntax");
 	else
 	{
 		if (!this->_channels.empty())
@@ -341,6 +344,44 @@ void	Server::createChannel(Client &client, std::vector<std::string> args)
 	{
 		this->sendMessage(it->second.getFd(), announce);
 	}
+}
+
+bool	Server::isChannel(std::vector<std::string> args)
+{
+	std::string	c = "&#+!";
+	if (args.front().size() < 2)
+		return (false);
+	return (c.find(args.front()[0]) != std::string::npos
+			&& args.front().size() < 52);
+				
+}
+
+int	Server::findClient(std::string nickname)
+{
+	for (mapIt it = this->_clients.begin(); it != this->_clients.end();
+			++it)
+		if (it->second.getNickname() == nickname)
+			return (it->first);
+	return (0);
+}
+
+void	Server::cmdKick(Client &client, std::vector<std::string> args)
+{
+	if (!this->checkRequirements(client))
+		return ;
+	else if (!this->isChannel(args))
+		this->sendMessage(client.getFd(), "ERROR: Invalid channel syntax");
+	else
+	{
+		int	kickFd = this->findClient(args.at(1));
+		if (kickFd == 0)
+			this->sendMessage(client.getFd(), "ERROR: Client doesn't exist");
+		chanIt	it = this->_channels.find(args.front());
+		if (it == this->_channels.end())
+			this->sendMessage(client.getFd(), "ERROR: Channel doesn't exist");
+
+	}
+
 }
 
 Server::~Server(void)

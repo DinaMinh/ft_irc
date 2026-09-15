@@ -6,7 +6,7 @@
 /*   By: dminh <dminh@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/09/10 11:46:05 by dminh             #+#    #+#             */
-/*   Updated: 2026/09/13 18:00:00 by dminh            ###   ########.fr       */
+/*   Updated: 2026/09/15 14:23:55 by dminh            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -46,6 +46,7 @@ class	Client
 		std::string	getNickname(void) const;
 		void		setUsername(std::string user);
 		std::string	getUsername(void) const;
+		void		setChannel(void);
 };
 
 #endif

@@ -6,7 +6,7 @@
 /*   By: dminh <dminh@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/09/10 11:46:46 by dminh             #+#    #+#             */
-/*   Updated: 2026/09/11 16:03:08 by dminh            ###   ########.fr       */
+/*   Updated: 2026/09/15 14:20:43 by dminh            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -73,7 +73,7 @@ std::string Client::extractMessage(void)
 	return (message);
 }
 
-int Client::getFd(void) const { return this->_fd; }
+int	Client::getFd(void) const { return this->_fd; }
 
 bool Client::isPassOk(void) const { return this->_isPassOk; }
 void Client::setPassOk(bool val) { this->_isPassOk = val; }
@@ -84,6 +84,5 @@ void Client::setRegistered(bool val) { this->_isRegistered = val; }
 void Client::setNickname(std::string nick) { this->_nickname = nick; }
 std::string Client::getNickname(void) const { return this->_nickname; }
 
-void Client::setUsername(std::string user) { this->_username = user; }
+void	Client::setUsername(std::string user) { this->_username = user; }
 std::string Client::getUsername(void) const { return this->_username; }
-

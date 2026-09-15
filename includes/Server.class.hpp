@@ -69,10 +69,13 @@ class	Server : public ASocket
 		void	cmdNick(Client &client, std::vector<std::string> args);
 		void	cmdUser(Client &client, std::vector<std::string> args);
 		void	cmdJoin(Client &client, std::vector<std::string> args);
+		void	cmdKick(Client &client, std::vector<std::string> args);
 		void	joinChannel(Client &client, chanIt &it,
 				std::vector<std::string> args);
 		void	createChannel(Client &client, std::vector<std::string> args);
 		void	setCmdMap(void);
+		bool	isChannel(std::vector<std::string> args);
+		int		findClient(std::string nickname);
 		template < typename T >
 		std::string numToStr(T number)
 		{
