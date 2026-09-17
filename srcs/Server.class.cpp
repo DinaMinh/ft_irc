@@ -6,7 +6,7 @@
 /*   By: dminh <dminh@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/08/21 11:00:47 by dminh             #+#    #+#             */
-/*   Updated: 2026/09/15 15:39:36 by dminh            ###   ########.fr       */
+/*   Updated: 2026/09/17 14:39:58 by dminh            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -48,6 +48,8 @@ void	Server::setCmdMap(void)
 	this->_cmd.insert(std::make_pair("USER", &Server::cmdUser));
 	this->_cmd.insert(std::make_pair("JOIN", &Server::cmdJoin));
 	this->_cmd.insert(std::make_pair("KICK", &Server::cmdKick));
+	this->_cmd.insert(std::make_pair("PART", &Server::cmdPart));
+	this->_cmd.insert(std::make_pair("PRIVMSG", &Server::cmdPrivmsg));
 }
 
 void	Server::establishConnection(void)
@@ -332,18 +334,21 @@ void	Server::joinChannel(Client &client, chanIt &it,
 
 }
 
+void	Server::sendAll(std::string  announce)
+{
+	for (mapIt	it = this->_clients.begin();
+			it != this->_clients.end();
+			++it)
+		this->sendMessage(it->second.getFd(), announce);
+}
+
 void	Server::createChannel(Client &client, std::vector<std::string> args)
 {
 	Channel	chan(client);
 	this->_channels.insert(std::make_pair(args.front(), chan));
 
 	std::string	announce = "Channel " + args.front() + " was created !";
-	for (mapIt	it = this->_clients.begin();
-			it != this->_clients.end();
-			++it)
-	{
-		this->sendMessage(it->second.getFd(), announce);
-	}
+	this->sendAll(announce);
 }
 
 bool	Server::isChannel(std::vector<std::string> args)
@@ -353,7 +358,7 @@ bool	Server::isChannel(std::vector<std::string> args)
 		return (false);
 	return (c.find(args.front()[0]) != std::string::npos
 			&& args.front().size() < 52);
-				
+
 }
 
 int	Server::findClient(std::string nickname)
@@ -379,9 +384,54 @@ void	Server::cmdKick(Client &client, std::vector<std::string> args)
 		chanIt	it = this->_channels.find(args.front());
 		if (it == this->_channels.end())
 			this->sendMessage(client.getFd(), "ERROR: Channel doesn't exist");
-
+		else
+			it->second.kick(*this, client.getFd(), kickFd);
 	}
 
+}
+
+void	Server::cmdPart(Client &client, std::vector<std::string> args)
+{
+	if (!this->checkRequirements(client))
+		return ;
+	else if (!this->isChannel(args))
+		this->sendMessage(client.getFd(), "ERROR: Invalid channel syntax");
+	else
+	{
+		chanIt	it = this->_channels.find(args.front());
+		if (it == this->_channels.end())
+			this->sendMessage(client.getFd(), "ERROR: Channel doesn't exist");
+		else
+		{
+			it->second.part(*this, client.getFd());
+			if (it->second.getSize() == 0)
+			{
+				this->_channels.erase(it->first);
+				this->sendAll("Deleting channel " + args.front());
+			}
+		}
+	}
+}
+
+void	Server::cmdPrivmsg(Client &client, std::vector<std::string> args)
+{
+	if (!this->checkRequirements(client))
+		return ;
+	else if (!this->isChannel(args))
+		this->sendMessage(client.getFd(), "ERROR: Invalid channel syntax");
+	else
+	{
+		if (args.size() < 3)
+			this->sendMessage(client.getFd(), "ERROR: No message sent");
+		else
+		{
+			chanIt	it = this->_channels.find(args.front());
+			if (it == this->_channels.end())
+				this->sendMessage(client.getFd(), "ERROR: Channel doesn't exist");
+			else
+				it->second.msg(*this, client.getFd(), args);
+		}
+	}
 }
 
 Server::~Server(void)

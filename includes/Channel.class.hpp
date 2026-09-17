@@ -6,7 +6,7 @@
 /*   By: dminh <dminh@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/09/14 13:39:09 by dminh             #+#    #+#             */
-/*   Updated: 2026/09/14 13:39:09 by dminh            ###   ########.fr       */
+/*   Updated: 2026/09/17 14:05:20 by dminh            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,6 +14,8 @@
 # define CHANNEL_CLASS_HPP
 
 # include <map>
+# include <cstddef>
+# include <vector>
 
 typedef std::map<int, Client>::const_iterator	memIt;
 
@@ -34,6 +36,9 @@ class	Channel
 		bool	isMember(int fd) const;
 		bool	isOp(int fd) const;
 		void	kick(Server &serv, int kicker, int kicked);
+		void	part(Server &serv, int kicker);
+		void	msg(Server &serv, int sender, std::vector<std::string> args);
+		size_t	getSize(void) const;
 };
 
 #endif

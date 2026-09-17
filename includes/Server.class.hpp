@@ -6,7 +6,7 @@
 /*   By: dminh <dminh@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/08/21 10:58:04 by dminh             #+#    #+#             */
-/*   Updated: 2026/09/14 17:04:07 by dminh            ###   ########.fr       */
+/*   Updated: 2026/09/17 14:34:21 by dminh            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -70,12 +70,15 @@ class	Server : public ASocket
 		void	cmdUser(Client &client, std::vector<std::string> args);
 		void	cmdJoin(Client &client, std::vector<std::string> args);
 		void	cmdKick(Client &client, std::vector<std::string> args);
+		void	cmdPart(Client &client, std::vector<std::string> args);
+		void	cmdPrivmsg(Client &client, std::vector<std::string> args);
 		void	joinChannel(Client &client, chanIt &it,
 				std::vector<std::string> args);
 		void	createChannel(Client &client, std::vector<std::string> args);
 		void	setCmdMap(void);
 		bool	isChannel(std::vector<std::string> args);
 		int		findClient(std::string nickname);
+		void	sendAll(std::string  announce);
 		template < typename T >
 		std::string numToStr(T number)
 		{
