@@ -6,7 +6,7 @@
 /*   By: dminh <dminh@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/09/14 13:59:17 by dminh             #+#    #+#             */
-/*   Updated: 2026/09/17 14:52:20 by dminh            ###   ########.fr       */
+/*   Updated: 2026/09/17 15:43:01 by dminh            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -92,7 +92,7 @@ void	Channel::part(Server &serv, int member)
 			if (this->_members.size() == 1)
 			{
 				memIt it = this->_members.begin();
-				if (this->_operators.find(it->first) != this->_operators.end())
+				if (this->_operators.find(it->first) == this->_operators.end())
 					this->_operators.insert(std::make_pair(it->first,
 								it->second));
 			}
