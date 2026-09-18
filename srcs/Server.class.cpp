@@ -47,6 +47,7 @@ void	Server::setCmdMap(void)
 	this->_cmd.insert(std::make_pair("NICK", &Server::cmdNick));
 	this->_cmd.insert(std::make_pair("USER", &Server::cmdUser));
 	this->_cmd.insert(std::make_pair("JOIN", &Server::cmdJoin));
+	this->_cmd.insert(std::make_pair("PING", &Server::cmdPing));
 }
 
 void	Server::establishConnection(void)
@@ -314,6 +315,16 @@ void	Server::cmdJoin(Client &client, std::vector<std::string> args)
 		else
 			this->createChannel(client, args);
 	}
+}
+
+void Server::cmdPing(Client &client, std::vector<std::string> args)
+{
+	if (args.empty())
+	{
+		this->sendMessage(client.getFd(), "ERROR :No origin specified");
+		return;
+	}
+	this->sendMessage(client.getFd(), "PONG " + args[0]);
 }
 
 void	Server::joinChannel(Client &client, chanIt &it,
