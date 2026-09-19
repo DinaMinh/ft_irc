@@ -6,7 +6,7 @@
 /*   By: dminh <dminh@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/08/21 11:00:47 by dminh             #+#    #+#             */
-/*   Updated: 2026/09/17 14:39:58 by dminh            ###   ########.fr       */
+/*   Updated: 2026/09/19 05:04:32 by dminh            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,11 +22,7 @@ Server::Server(const std::string &port, const std::string &pw)
 		throw	std::runtime_error("ERROR: Couldn't open the socket.");
 	std::cout << "serv fd = " << this->_serv_fd << std::endl;
 	
-	int	flags = fcntl(this->_serv_fd, F_GETFL, 0);
-	if (flags == -1)
-		throw	std::runtime_error("ERROR: Couldn't get the socket flags.");
-	flags = flags | O_NONBLOCK;
-	if (fcntl(this->_serv_fd, F_SETFL, flags) == -1)
+	if (fcntl(this->_serv_fd, F_SETFL, O_NONBLOCK) == -1)
 		throw	std::runtime_error("ERROR: Couldn't set the socket flags");
 	this->setCmdMap();
 }
@@ -50,6 +46,9 @@ void	Server::setCmdMap(void)
 	this->_cmd.insert(std::make_pair("KICK", &Server::cmdKick));
 	this->_cmd.insert(std::make_pair("PART", &Server::cmdPart));
 	this->_cmd.insert(std::make_pair("PRIVMSG", &Server::cmdPrivmsg));
+	this->_cmd.insert(std::make_pair("TOPIC", &Server::cmdTopic));
+	this->_cmd.insert(std::make_pair("INVITE", &Server::cmdInvite));
+	this->_cmd.insert(std::make_pair("MODE", &Server::cmdMode));
 }
 
 void	Server::establishConnection(void)
@@ -74,6 +73,45 @@ void	Server::establishConnection(void)
 	server_pollfd.revents = 0;
 	
 	this->_fds.push_back(server_pollfd);
+}
+
+void	Server::sendError(Client &client, int code, std::string arg)
+{
+	std::string	err = ":" + this->_host + " " + numToStr(code) + " ";
+	
+	if (client.getNickname().empty())
+		err += "* ";
+	else
+		err += client.getNickname() + " ";
+	err += arg;
+	switch (code)
+	{
+		case ERR_NOSUCHNICK:
+			err += " :No such nick/channel";
+			break ;
+		case ERR_NOSUCHCHANNEL:
+			err += " :No such channel";
+			break ;
+		case ERR_NOTONCHANNEL:
+			err += " :You're not on channel";
+			break ;
+		case ERR_USERONCHANNEL:
+			err += " :is already on channel";
+			break ;
+		case ERR_NEEDMOREPARAMS:
+			err += " :Not enough parameters";
+			break ;
+		case ERR_NOINVITEONLYCHAN:
+			err += " :Cannot join channel";
+			break ;
+		case ERR_CHANOPRIVSNEEDED:
+			err += " :You're not channel operator";
+			break ;
+		default:
+			err += " :Unknown error";
+			break ;
+	}
+	this->sendMessage(client.getFd(), err);
 }
 
 void	Server::run(void)
@@ -272,7 +310,11 @@ void Server::cmdNick(Client &client, std::vector<std::string> args)
 		this->sendMessage(client.getFd(), "ERROR :Missing nickname");
 		return;
 	}
-	client.setNickname(args[0]);
+	int	exists = this->findClient(args.front());
+	if (exists != 0 && exists != client.getFd())
+		this->sendMessage(client.getFd(), "ERROR: Nickname is already in use");
+	else
+		client.setNickname(args[0]);
 }
 
 void Server::cmdUser(Client &client, std::vector<std::string> args)
@@ -292,19 +334,19 @@ void Server::cmdUser(Client &client, std::vector<std::string> args)
 	{
 		client.setRegistered(true);
 		this->sendMessage(client.getFd(),
-				numToStr(this->_clients.size())
+				numToStr(001) + " "
 				+ client.getNickname() + " :Welcome to the IRC ");
 	}
 }
 
 void	Server::cmdJoin(Client &client, std::vector<std::string> args)
 {
-	if (args.size() != 1)
+	if (args.size() < 1 || args.size() >  2)
 		this->sendMessage(client.getFd(), "ERROR: Join only takes one channel");
 	else if (!this->checkRequirements(client))
 		return ;
 	else if (!this->isChannel(args))
-		this->sendMessage(client.getFd(), "ERROR: Invalid channel syntax");
+		this->sendError(client, ERR_NOSUCHCHANNEL, args.front());
 	else
 	{
 		if (!this->_channels.empty())
@@ -314,24 +356,11 @@ void	Server::cmdJoin(Client &client, std::vector<std::string> args)
 			if (it == this->_channels.end())
 				this->createChannel(client, args);
 			else
-				this->joinChannel(client, it, args);
+				it->second.join(*this, client, args);
 		}
 		else
 			this->createChannel(client, args);
 	}
-}
-
-void	Server::joinChannel(Client &client, chanIt &it,
-		std::vector<std::string> args)
-{
-	if (!it->second.isMember(client.getFd()))
-	{
-		it->second.addMember(client);
-		this->sendMessage(client.getFd(), "You joined the " + args.front() + " channel !");
-	}
-	else
-		this->sendMessage(client.getFd(), "You're already in this channel !");
-
 }
 
 void	Server::sendAll(std::string  announce)
@@ -344,16 +373,17 @@ void	Server::sendAll(std::string  announce)
 
 void	Server::createChannel(Client &client, std::vector<std::string> args)
 {
-	Channel	chan(client);
-	this->_channels.insert(std::make_pair(args.front(), chan));
+	Channel	chan(client, args.front());
 
-	std::string	announce = "Channel " + args.front() + " was created !";
-	this->sendAll(announce);
+	this->_channels.insert(std::make_pair(args.front(), chan));
+	this->sendMessage(client.getFd(), ":" + client.getNickname() + " JOIN :" + args.front());
 }
 
 bool	Server::isChannel(std::vector<std::string> args)
 {
 	std::string	c = "&#+!";
+	if (args.empty())
+		return (false);
 	if (args.front().size() < 2)
 		return (false);
 	return (c.find(args.front()[0]) != std::string::npos
@@ -370,14 +400,29 @@ int	Server::findClient(std::string nickname)
 	return (0);
 }
 
-void	Server::cmdKick(Client &client, std::vector<std::string> args)
+bool	Server::chanRequirements(Client &client, std::vector<std::string> args)
 {
 	if (!this->checkRequirements(client))
-		return ;
+		return (false);
 	else if (!this->isChannel(args))
-		this->sendMessage(client.getFd(), "ERROR: Invalid channel syntax");
+	{
+		this->sendError(client, ERR_NOSUCHCHANNEL, args.front());
+		return (false);
+	}
+	return (true);
+}
+
+void	Server::cmdKick(Client &client, std::vector<std::string> args)
+{
+	if (!this->chanRequirements(client, args))
+		return ;
 	else
 	{
+		if (args.size() < 2)
+		{
+			this->sendMessage(client.getFd(), "ERROR: Not enough parameters");
+			return ;
+		}
 		int	kickFd = this->findClient(args.at(1));
 		if (kickFd == 0)
 			this->sendMessage(client.getFd(), "ERROR: Client doesn't exist");
@@ -392,10 +437,8 @@ void	Server::cmdKick(Client &client, std::vector<std::string> args)
 
 void	Server::cmdPart(Client &client, std::vector<std::string> args)
 {
-	if (!this->checkRequirements(client))
+	if (!this->chanRequirements(client, args))
 		return ;
-	else if (!this->isChannel(args))
-		this->sendMessage(client.getFd(), "ERROR: Invalid channel syntax");
 	else
 	{
 		chanIt	it = this->_channels.find(args.front());
@@ -417,20 +460,156 @@ void	Server::cmdPrivmsg(Client &client, std::vector<std::string> args)
 {
 	if (!this->checkRequirements(client))
 		return ;
-	else if (!this->isChannel(args))
-		this->sendMessage(client.getFd(), "ERROR: Invalid channel syntax");
 	else
 	{
-		if (args.size() < 3)
+		if (args.size() < 2)
 			this->sendMessage(client.getFd(), "ERROR: No message sent");
 		else
 		{
 			chanIt	it = this->_channels.find(args.front());
 			if (it == this->_channels.end())
-				this->sendMessage(client.getFd(), "ERROR: Channel doesn't exist");
+			{
+				int	receivee = this->findClient(args.front());
+				if (receivee != 0)
+				{
+					std::string	msg = ":" + client.getNickname() + " PRIVMSG " + args.front();;
+					for (std::vector<std::string>::iterator it = args.begin() + 1;
+							it != args.end();
+							++it)
+						msg += " " + *it;
+					this->sendMessage(receivee, msg);
+				}
+				else
+					this->sendMessage(client.getFd(), "ERROR: Invalid target");
+			}
 			else
 				it->second.msg(*this, client.getFd(), args);
 		}
+	}
+}
+
+void	Server::cmdTopic(Client &client, std::vector<std::string> args)
+{
+	if (!this->chanRequirements(client, args))
+		return ;
+	else
+	{
+		chanIt it = this->_channels.find(args.front());
+		if (it == this->_channels.end())
+			this->sendMessage(client.getFd(), "ERROR: Channel doesn't exist");
+		else if (args.size() == 1)
+		{
+			if (!it->second.getTopic().empty())
+				this->sendMessage(client.getFd(), RPL_TOPIC
+						+ client.getNickname() + " " + args.front() + " :" + it->second.getTopic());
+		}
+		else
+			it->second.setTopic(*this, client.getFd(), args);
+	}
+}
+
+void	Server::cmdInvite(Client &client, std::vector<std::string> args)
+{
+	if (!this->checkRequirements(client))
+		return ;
+	if (args.size() < 2)
+	{
+		this->sendError(client, ERR_NEEDMOREPARAMS, "INVITE");
+		return ;
+	}
+	std::string nickname = args[0];
+	std::string channelName = args[1];
+
+	chanIt it = this->_channels.find(channelName);
+	if (it == this->_channels.end())
+	{
+		this->sendError(client, ERR_NOSUCHCHANNEL, channelName);
+	}
+	else
+	{
+		int	inviteId = this->findClient(nickname);
+		if (inviteId == 0)
+			this->sendError(client, ERR_NOSUCHNICK, nickname);
+		else
+			it->second.invite(*this, client, nickname, inviteId);
+	}
+}
+
+void Server::cmdMode(Client &client, std::vector<std::string> args)
+{
+	if (args.size() < 1)
+	{
+		this->sendError(client, ERR_NEEDMOREPARAMS, "MODE");
+		return ;
+	}
+	if (this->isChannel(args))
+	{
+		chanIt it = this->_channels.find(args[0]);
+		if (it == this->_channels.end())
+		{
+			this->sendError(client, ERR_NOSUCHCHANNEL, args[0]);
+			return ;
+		}
+		Channel &chan = it->second;
+
+		if (args.size() == 1)
+			return ;
+		if (!chan.isOp(client.getFd()))
+		{
+			this->sendError(client, ERR_CHANOPRIVSNEEDED, args[0]);
+			return ;
+		}
+		std::string modes = args[1];
+		bool add = true;
+		size_t arg_idx = 2;
+
+		for (size_t i = 0; i < modes.length(); i++)
+		{
+			char c = modes[i];
+			if (c == '+')
+				add = true;
+			else if (c == '-')
+				add = false;
+			else if (c == 'i')
+				chan.setInviteOnly(add);
+			else if (c == 't')
+				chan.setTopicRestricted(add);
+			else if (c == 'k')
+			{
+				if (add && arg_idx < args.size())
+					chan.setPassword(args[arg_idx++]);
+				else if (!add)
+					chan.setPassword("");
+			}
+			else if (c == 'l')
+			{
+				if (add && arg_idx < args.size())
+					chan.setLimit(atoi(args[arg_idx++].c_str()));
+				else if (!add)
+					chan.setLimit(0);
+			}
+			else if (c == 'o')
+			{
+				if (arg_idx < args.size())
+				{
+					int targetFd = this->findClient(args[arg_idx++]);
+
+					if (targetFd == 0)
+						this->sendMessage(client.getFd(), "ERROR: This client doesn't exist");
+					else if (add)
+						chan.addOp(*this, this->_clients.find(targetFd)->second, client);
+					else
+						chan.removeOp(*this, this->_clients.find(targetFd)->second, client);
+				}
+			}
+			else
+				this->sendMessage(client.getFd(), "472 " + client.getNickname() + " " + c + " :is unknown mode char to me");
+		}
+		std::string modeMsg = ":" + client.getNickname() + " MODE " + args[0] + " " + modes;
+
+		for (size_t i = 2; i < arg_idx && i < args.size(); i++)
+			modeMsg += " " + args[i];
+		chan.sendChannel(*this, modeMsg);
 	}
 }
 

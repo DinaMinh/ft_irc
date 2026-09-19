@@ -6,7 +6,7 @@
 /*   By: dminh <dminh@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/08/21 10:58:04 by dminh             #+#    #+#             */
-/*   Updated: 2026/09/17 14:34:21 by dminh            ###   ########.fr       */
+/*   Updated: 2026/09/19 04:45:56 by dminh            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,6 +26,8 @@
 # include <cctype>
 
 # define DATA_SIZE 512
+# define RPL_TOPIC ":server 332 "
+# define RPL_INVITING "341 "
 
 /* Forward declarations of ASocket, Client, Server and Channel */
 class	ASocket;
@@ -38,6 +40,17 @@ typedef std::map<std::string, Channel>::iterator	chanIt;
 
 typedef std::map<std::string,
 		void (Server::*)(Client &, std::vector<std::string>)>::iterator	cmdIt;
+enum	Errors
+{
+	ERR_NOSUCHNICK = 401,
+	ERR_NOSUCHCHANNEL = 403,
+	ERR_NOTONCHANNEL = 442,
+	ERR_USERONCHANNEL = 443,
+	ERR_NEEDMOREPARAMS = 461,
+	ERR_NOINVITEONLYCHAN = 473,
+	ERR_CHANOPRIVSNEEDED = 482
+};
+
 class	Server : public ASocket
 {
 	private:
@@ -57,6 +70,7 @@ class	Server : public ASocket
 		~Server(void);
 		Server	&operator=(const Server &src);
 		void	establishConnection(void);
+		void	sendError(Client &client, int code, std::string arg);
 		void	run(void);
 		void	closeFd(void);
 		void	acceptClient(void);
@@ -65,6 +79,8 @@ class	Server : public ASocket
 		void	parseAndExecute(std::string message, int client_fd);
 		void	sendMessage(int client_fd, std::string message);
 		bool	checkRequirements(Client &client);
+		bool	chanRequirements(Client &client, std::vector<std::string> args);
+
 		void	cmdPass(Client &client, std::vector<std::string> args);
 		void	cmdNick(Client &client, std::vector<std::string> args);
 		void	cmdUser(Client &client, std::vector<std::string> args);
@@ -72,8 +88,9 @@ class	Server : public ASocket
 		void	cmdKick(Client &client, std::vector<std::string> args);
 		void	cmdPart(Client &client, std::vector<std::string> args);
 		void	cmdPrivmsg(Client &client, std::vector<std::string> args);
-		void	joinChannel(Client &client, chanIt &it,
-				std::vector<std::string> args);
+		void	cmdTopic(Client &client, std::vector<std::string> args);
+		void	cmdInvite(Client &client, std::vector<std::string> args);
+		void	cmdMode(Client &client, std::vector<std::string> args);
 		void	createChannel(Client &client, std::vector<std::string> args);
 		void	setCmdMap(void);
 		bool	isChannel(std::vector<std::string> args);
