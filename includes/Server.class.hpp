@@ -6,7 +6,7 @@
 /*   By: dminh <dminh@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/08/21 10:58:04 by dminh             #+#    #+#             */
-/*   Updated: 2026/09/19 04:45:56 by dminh            ###   ########.fr       */
+/*   Updated: 2026/09/19 18:18:56 by dminh            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -91,6 +91,7 @@ class	Server : public ASocket
 		void	cmdTopic(Client &client, std::vector<std::string> args);
 		void	cmdInvite(Client &client, std::vector<std::string> args);
 		void	cmdMode(Client &client, std::vector<std::string> args);
+		void	cmdPing(Client &client, std::vector<std::string> args);
 		void	createChannel(Client &client, std::vector<std::string> args);
 		void	setCmdMap(void);
 		bool	isChannel(std::vector<std::string> args);

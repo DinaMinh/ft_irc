@@ -6,7 +6,7 @@
 /*   By: dminh <dminh@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/08/21 11:00:47 by dminh             #+#    #+#             */
-/*   Updated: 2026/09/19 05:04:32 by dminh            ###   ########.fr       */
+/*   Updated: 2026/09/19 18:21:13 by dminh            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -49,6 +49,7 @@ void	Server::setCmdMap(void)
 	this->_cmd.insert(std::make_pair("TOPIC", &Server::cmdTopic));
 	this->_cmd.insert(std::make_pair("INVITE", &Server::cmdInvite));
 	this->_cmd.insert(std::make_pair("MODE", &Server::cmdMode));
+	this->_cmd.insert(std::make_pair("PING", &Server::cmdPing));
 }
 
 void	Server::establishConnection(void)
@@ -369,6 +370,16 @@ void	Server::sendAll(std::string  announce)
 			it != this->_clients.end();
 			++it)
 		this->sendMessage(it->second.getFd(), announce);
+}
+
+void Server::cmdPing(Client &client, std::vector<std::string> args)
+{
+	if (args.empty())
+	{
+		this->sendMessage(client.getFd(), "ERROR :No origin specified");
+		return;
+	}
+	this->sendMessage(client.getFd(), "PONG " + args[0]);
 }
 
 void	Server::createChannel(Client &client, std::vector<std::string> args)
